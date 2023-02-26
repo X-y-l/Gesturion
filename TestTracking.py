@@ -7,7 +7,7 @@ import time
 import mouse
 import numpy as np
 import pyautogui as pagui
-from angles_testing import hand_curl_vals
+from finger_angles import hand_curl_vals
 import os
 
 ###########################################################################################
@@ -18,6 +18,8 @@ import os
 # Design gesture library
 # functions to move mouse, interact with screen
 ###########################################################################################
+
+thresholds = [1.5,1,1,1,1]
 
 if os.getlogin() == "surface":
     cam_to_use = 1
@@ -33,7 +35,7 @@ mp_face_mesh = mp.solutions.face_mesh
 # Define the font properties
 font = cv2.FONT_HERSHEY_SIMPLEX
 font_scale = 1
-font_color = (255, 150, 0)
+font_color = (0, 55, 255)
 line_type = cv2.LINE_AA
 
 speaking = False
@@ -180,7 +182,6 @@ with mp_hands.Hands(
             if hand_results.multi_hand_landmarks:
                 hand = hand_results.multi_hand_landmarks[0].landmark
                 hand_metric = hand_results.multi_hand_world_landmarks[0].landmark
-                face = face_results.multi_face_landmarks[0].landmark
                 # Hand only Gestures
                 # Get space convertion factor
                 lencm = distance_between(hand_metric[0], hand_metric[9])*100
@@ -188,18 +189,31 @@ with mp_hands.Hands(
                 conv_factor = lenunit/lencm
 
                 # Finger curls
-                print(hand_curl_vals(hand))
+                curls = hand_curl_vals(hand)
+                fingers = []
+                for i in range(5):
+                    fingers.append(curls[i]<thresholds[i])
+
+                cv2.putText(image, str(fingers), (10, 350), font, font_scale, font_color, thickness=2, lineType=line_type)
 
                 # Mouse reference point
                 touch_point = hand[5]
 
                 # Check click
-                if distance_between(hand[4], hand[8]) < 4*conv_factor:
-                    move_mouse(old_finger, touch_point)
+                if distance_between(hand[4], hand[8]) < 5*conv_factor:
+                    mouse.press()
+                else:
+                    mouse.release()
+
+                # Check point
+                if fingers[2:] == [0,0,0]:
+                    move_mouse(old_finger,touch_point)
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
                 
                 # Face gestures
                 elif face_results.multi_face_landmarks:
+                    face = face_results.multi_face_landmarks[0].landmark
+
                     finger_pos = hand[8]
                     for i in lip_nodes:
                         lip_pos = face[i]
