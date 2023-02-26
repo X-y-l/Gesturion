@@ -28,6 +28,7 @@ with m as source:
 
 # start listening in the background (note that we don't have to do this inside a `with` statement)
 stop_listening = r.listen_in_background(m, callback)
+print("listening")
 # `stop_listening` is now a function that, when called, stops background listening
 
 # do some unrelated computations for 5 seconds

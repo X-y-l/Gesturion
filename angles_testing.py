@@ -1,10 +1,5 @@
 import numpy as np
 
-
-vects = np.array([[1,0],[-1,0]])
-
-import numpy as np
-
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 
@@ -18,6 +13,3 @@ def finger_angles(vects):
     for i in range(len(vects)-1):
         total_curl += angle_between(vects[i], vects[i+1])
     return total_curl
-
-print(vects)
-print(finger_angles(vects), np.pi / 2)

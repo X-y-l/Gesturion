@@ -1,6 +1,12 @@
 import cv2
 import mediapipe as mp
-import numpy
+import numpy as np
+import keyboard
+import speech_recognition as sr
+import time
+import mouse
+import numpy as np
+import pyautogui as pagui
 
 ###########################################################################################
 # TODO:
@@ -10,7 +16,6 @@ import numpy
 # Design gesture library
 # functions to move mouse, interact with screen
 ###########################################################################################
-
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -24,6 +29,26 @@ font_scale = 1
 font_color = (255, 150, 0)
 line_type = cv2.LINE_AA
 
+speaking = False
+speaking_end = lambda wait_for_stop=False: ""
+speaking_timeout = 1
+last_spoke = time.time()
+r = sr.Recognizer()
+m = sr.Microphone()
+with m as source:
+    r.adjust_for_ambient_noise(source)  # we only need to calibrate once, before we start listening
+
+
+width, height = pagui.size()
+
+def move_mouse(old_pos_hand, new_pos_hand):
+
+    old_pos_mouse = [old_pos_hand.x * width, old_pos_hand.y*height]
+    new_pos_mouse = [new_pos_hand.x * width, new_pos_hand.y*height]
+
+    move_vect = [new_pos_mouse[0] - old_pos_mouse[0], new_pos_mouse[1] - old_pos_mouse[1]]
+    mouse.move(move_vect[0], -move_vect[1], False)
+
 # Class to hold a point
 class point():
     def __init__(self, x,y,z):
@@ -31,6 +56,21 @@ class point():
         self.y = y
         self.z = z
 
+# this is called from the background thread
+def callback(recognizer, audio):
+    print("AUDIO HAS CALLBACKED")
+    # received audio data, now we'll recognize it using Google Speech Recognition
+    try:
+        # for testing purposes, we're just using the default API key
+        # to use another API key, use `r.recognize_google(audio, key="GOOGLE_SPEECH_RECOGNITION_API_KEY")`
+        # instead of `r.recognize_google(audio)`
+        words = recognizer.recognize_google(audio)
+        print("Google Speech Recognition thinks you said " + words)
+        keyboard.write(words)
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand audio")
+    except sr.RequestError as e:
+        print("Could not request results from Google Speech Recognition service; {0}".format(e))
 
 # Get list of all nodes in the lips
 lip_nodes = set()
@@ -41,21 +81,27 @@ for connection in mp_face_mesh.FACEMESH_LIPS:
 
 # get distance between 2 points
 def distance_between(a,b):
-    a = numpy.array([a.x,a.y,a.z])
-    b = numpy.array([b.x,b.y,b.z])
+    a = np.array([a.x,a.y,a.z])
+    b = np.array([b.x,b.y,b.z])
     dist = a-b
 
-    return numpy.sqrt(sum(dist*dist))
+    return np.sqrt(sum(dist*dist))
 
-
-
-
-def get_finger_vectors(hand):
-    landmarks = hand.landmark
-
+def get_ratio_point(pos, ratio):
+    return point(pos.x, pos.y*ratio, pos.z)
 
 # For webcam input:
 cap = cv2.VideoCapture(1)
+
+# Get the current frame width and height
+frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+# Calculate the aspect ratio
+aspect_ratio = frame_width / frame_height
+
+last = time.time()
+old_finger = point(0,0,0)
 with mp_hands.Hands(
         model_complexity=0,
         min_detection_confidence=0.5,
@@ -68,6 +114,7 @@ with mp_hands.Hands(
             min_tracking_confidence=0.5) as face_mesh:
         
         while cap.isOpened():
+            delta = last - time.time()
             success, image = cap.read()
             if not success:
                 print("Ignoring empty camera frame.")
@@ -120,30 +167,49 @@ with mp_hands.Hands(
                         .get_default_face_mesh_iris_connections_style())
             # Flip the image horizontally for a selfie-view display.
             image = cv2.flip(image, 1)
+            
+            touching_mouth = False
             if hand_results.multi_hand_landmarks:
-                wrist = hand_results.multi_hand_world_landmarks[0].landmark[0]
-                finger = hand_results.multi_hand_world_landmarks[0].landmark[9]
-                lencm = distance_between(wrist, finger)*100
-
-                wrist = hand_results.multi_hand_landmarks[0].landmark[0]
-                finger = hand_results.multi_hand_landmarks[0].landmark[9]
-                lenunit = distance_between(wrist, finger)
-
-
-
+                lencm = distance_between(
+                    hand_results.multi_hand_world_landmarks[0].landmark[0], 
+                    hand_results.multi_hand_world_landmarks[0].landmark[9])*100
+                lenunit = distance_between(
+                    hand_results.multi_hand_landmarks[0].landmark[0], 
+                    hand_results.multi_hand_landmarks[0].landmark[9])
                 conv_factor = lenunit/lencm
 
-                cv2.putText(image, f"Convertion factor{conv_factor}", (10, 200), font, font_scale, font_color, thickness=2, lineType=line_type)
+                touch_point = hand_results.multi_hand_landmarks[0].landmark[5]
 
+                # Check click
                 if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 4*conv_factor:
+                    move_mouse(old_finger, touch_point)
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
+
+                old_finger = touch_point
+                
+                # Touch face
                 if face_results.multi_face_landmarks:
                     finger_pos = hand_results.multi_hand_landmarks[0].landmark[8]
                     for i in lip_nodes:
                         lip_pos = face_results.multi_face_landmarks[0].landmark[i]
                         if distance_between(finger_pos, lip_pos) < 5*conv_factor:
-                            cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
-                            
+                            touching_mouth = True
+                            break
+                    
+
+            if touching_mouth:
+                cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
+                if not speaking and time.time() - last_spoke > speaking_timeout:
+                    speaking = True
+                    speaking_end = r.listen_in_background(m, callback)
+                    print("listening")
+            else:
+                if speaking:
+                    last_spoke = time.time()
+                    speaking = False
+                    speaking_end(wait_for_stop=False)
+                    print("stopped speaking")
+                                
             
             cv2.imshow('MediaPipe Hands', image)
 
