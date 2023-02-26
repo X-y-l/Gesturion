@@ -170,6 +170,7 @@ with mp_hands.Hands(
             
             touching_mouth = False
             if hand_results.multi_hand_landmarks:
+                # Hand only Gestures
                 lencm = distance_between(
                     hand_results.multi_hand_world_landmarks[0].landmark[0], 
                     hand_results.multi_hand_world_landmarks[0].landmark[9])*100
@@ -184,17 +185,17 @@ with mp_hands.Hands(
                 if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 4*conv_factor:
                     move_mouse(old_finger, touch_point)
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
-
-                old_finger = touch_point
                 
-                # Touch face
-                if face_results.multi_face_landmarks:
+                # Face gestures
+                elif face_results.multi_face_landmarks:
                     finger_pos = hand_results.multi_hand_landmarks[0].landmark[8]
                     for i in lip_nodes:
                         lip_pos = face_results.multi_face_landmarks[0].landmark[i]
                         if distance_between(finger_pos, lip_pos) < 5*conv_factor:
                             touching_mouth = True
                             break
+
+                old_finger = touch_point
                     
 
             if touching_mouth:
