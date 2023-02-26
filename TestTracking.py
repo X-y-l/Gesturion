@@ -8,7 +8,7 @@ import numpy
 # function to determine which fingers are closed
 # function to determine direction and speed of motion of hand?
 # Design gesture library
-# 
+# functions to move mouse, interact with screen
 ###########################################################################################
 
 
@@ -47,8 +47,15 @@ def distance_between(a,b):
 
     return numpy.sqrt(sum(dist*dist))
 
+
+
+
+def get_finger_vectors(hand):
+    landmarks = hand.landmark
+
+
 # For webcam input:
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 with mp_hands.Hands(
         model_complexity=0,
         min_detection_confidence=0.5,
@@ -122,17 +129,19 @@ with mp_hands.Hands(
                 finger = hand_results.multi_hand_landmarks[0].landmark[9]
                 lenunit = distance_between(wrist, finger)
 
+
+
                 conv_factor = lenunit/lencm
 
                 cv2.putText(image, f"Convertion factor{conv_factor}", (10, 200), font, font_scale, font_color, thickness=2, lineType=line_type)
 
-                if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 3*conv_factor:
+                if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 4*conv_factor:
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
                 if face_results.multi_face_landmarks:
                     finger_pos = hand_results.multi_hand_landmarks[0].landmark[8]
                     for i in lip_nodes:
                         lip_pos = face_results.multi_face_landmarks[0].landmark[i]
-                        if distance_between(finger_pos, lip_pos) < 4*conv_factor:
+                        if distance_between(finger_pos, lip_pos) < 5*conv_factor:
                             cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
                             
             
