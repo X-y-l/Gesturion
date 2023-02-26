@@ -1,7 +1,6 @@
 import cv2
 import mediapipe as mp
 import numpy as np
-import keyboard
 import time
 import mouse
 import os
@@ -18,7 +17,7 @@ from mouse_move import move_mouse
 # Mouse acceleration
 ###########################################################################################
 
-thresholds = [1.5,1,1,1,1]
+thresholds = [1.2,1,1,1,1]
 
 if os.getlogin() == "surface":
     cam_to_use = 1
@@ -71,6 +70,7 @@ def get_ratio_point(pos, ratio):
 
 # For webcam input:
 cap = cv2.VideoCapture(cam_to_use)
+cap.set(cv2.CAP_PROP_FPS, 60)
 
 # Get the current frame width and height
 frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -196,16 +196,14 @@ with mp_hands.Hands(
 
             if touching_mouth:
                 cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
-                if (not speaking) and (time.time() - last_spoke > speaking_timeout):
+                if (not speaking):
                     speaking = True
-                    sp.start()
+                    #sp.start()
                     print("listening")
-            else:
-                if speaking:
-                    last_spoke = time.time()
-                    speaking = False
-                    sp.stop()
-                    print("stopped speaking")
+            elif speaking:
+                speaking = False
+                #sp.stop()
+                print("stopped speaking")
                                 
             
             cv2.imshow('MediaPipe Hands', image)

@@ -9,17 +9,21 @@ import keyboard
 
 class Speech():
     def __init__(self):
+        self.running = False
         self.r = sr.Recognizer()
-        self.r.energy_threshold = 4000
-        self.m = sr.Microphone()
+        self.r.energy_threshold = 3000
+        self.m = sr.Microphone(device_index=1)
         with self.m as source:
-            self.r.adjust_for_ambient_noise(source)  # we only need to calibrate once, before we start listening
+            self.r.adjust_for_ambient_noise(source,duration=5)  # we only need to calibrate once, before we start listening
 
     def start(self):
-        self.stop_listening = self.r.listen_in_background(self.m, callback)
-        print("listening")
+        if not self.running:
+            self.running = True
+            self.stop_listening = self.r.listen_in_background(self.m, callback)
+            print("listening")
 
     def stop(self):
+        self.running = False
         self.stop_listening(wait_for_stop=False)
         self = Speech()
 
