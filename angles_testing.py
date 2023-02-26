@@ -22,6 +22,6 @@ def hand_curl_vals(hand):
     fingers = []
     for i in range(1,21,4):
         current_finger = [point_to_cor(hand[0])]
-        current_finger += [point_to_cor(hand[j]) for j in range(i,i+5)]
+        current_finger += [point_to_cor(hand[j]) for j in range(i,i+4)]
         fingers.append(finger_angle(current_finger))
     return fingers
