@@ -7,6 +7,8 @@ import time
 import mouse
 import numpy as np
 import pyautogui as pagui
+from angles_testing import hand_curl_vals
+import os
 
 ###########################################################################################
 # TODO:
@@ -16,6 +18,11 @@ import pyautogui as pagui
 # Design gesture library
 # functions to move mouse, interact with screen
 ###########################################################################################
+
+if os.getlogin() == "surface":
+    cam_to_use = 1
+else:
+    cam_to_use = 0
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -30,11 +37,12 @@ font_color = (255, 150, 0)
 line_type = cv2.LINE_AA
 
 speaking = False
-speaking_end = lambda wait_for_stop=False: ""
+speaking_end = lambda wait_for_stop=False: None
 speaking_timeout = 1
 last_spoke = time.time()
 r = sr.Recognizer()
 m = sr.Microphone()
+
 with m as source:
     r.adjust_for_ambient_noise(source)  # we only need to calibrate once, before we start listening
 
@@ -91,7 +99,7 @@ def get_ratio_point(pos, ratio):
     return point(pos.x, pos.y*ratio, pos.z)
 
 # For webcam input:
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(cam_to_use)
 
 # Get the current frame width and height
 frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -170,37 +178,42 @@ with mp_hands.Hands(
             
             touching_mouth = False
             if hand_results.multi_hand_landmarks:
+                hand = hand_results.multi_hand_landmarks[0].landmark
+                hand_metric = hand_results.multi_hand_world_landmarks[0].landmark
+                face = face_results.multi_face_landmarks[0].landmark
                 # Hand only Gestures
-                lencm = distance_between(
-                    hand_results.multi_hand_world_landmarks[0].landmark[0], 
-                    hand_results.multi_hand_world_landmarks[0].landmark[9])*100
-                lenunit = distance_between(
-                    hand_results.multi_hand_landmarks[0].landmark[0], 
-                    hand_results.multi_hand_landmarks[0].landmark[9])
+                # Get space convertion factor
+                lencm = distance_between(hand_metric[0], hand_metric[9])*100
+                lenunit = distance_between(hand[0], hand[9])
                 conv_factor = lenunit/lencm
 
-                touch_point = hand_results.multi_hand_landmarks[0].landmark[5]
+                # Finger curls
+                print(hand_curl_vals(hand))
+
+                # Mouse reference point
+                touch_point = hand[5]
 
                 # Check click
-                if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 4*conv_factor:
+                if distance_between(hand[4], hand[8]) < 4*conv_factor:
                     move_mouse(old_finger, touch_point)
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
                 
                 # Face gestures
                 elif face_results.multi_face_landmarks:
-                    finger_pos = hand_results.multi_hand_landmarks[0].landmark[8]
+                    finger_pos = hand[8]
                     for i in lip_nodes:
-                        lip_pos = face_results.multi_face_landmarks[0].landmark[i]
+                        lip_pos = face[i]
                         if distance_between(finger_pos, lip_pos) < 5*conv_factor:
                             touching_mouth = True
                             break
-
+                
+                # Update old point
                 old_finger = touch_point
                     
 
             if touching_mouth:
                 cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
-                if not speaking and time.time() - last_spoke > speaking_timeout:
+                if (not speaking) and (time.time() - last_spoke > speaking_timeout):
                     speaking = True
                     speaking_end = r.listen_in_background(m, callback)
                     print("listening")

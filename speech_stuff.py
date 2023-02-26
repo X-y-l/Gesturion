@@ -9,6 +9,7 @@ import speech_recognition as sr
 
 # this is called from the background thread
 def callback(recognizer, audio):
+    print("Called Back")
     # received audio data, now we'll recognize it using Google Speech Recognition
     try:
         # for testing purposes, we're just using the default API key
@@ -35,7 +36,9 @@ print("listening")
 for _ in range(50): time.sleep(0.1)  # we're still listening even though the main thread is doing other things
 
 # calling this function requests that the background listener stop listening
+print("Stopping")
 stop_listening(wait_for_stop=False)
+print("Stopped")
 
 # do some more unrelated things
 while True: time.sleep(0.1)  # we're not listening anymore, even though the background thread might still be running for a second or two while cleaning up and stopping
