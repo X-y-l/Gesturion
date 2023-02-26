@@ -2,21 +2,20 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import keyboard
-import speech_recognition as sr
 import time
 import mouse
-import numpy as np
-import pyautogui as pagui
-from finger_angles import hand_curl_vals
 import os
+from speech_stuff import Speech
+from finger_angles import hand_curl_vals
+from mouse_move import move_mouse
+
 
 ###########################################################################################
 # TODO:
-# function to get handspan (calibration function) -> used in distance function
-# function to determine which fingers are closed
 # function to determine direction and speed of motion of hand?
 # Design gesture library
-# functions to move mouse, interact with screen
+# Fix keyboard
+# Mouse acceleration
 ###########################################################################################
 
 thresholds = [1.5,1,1,1,1]
@@ -42,22 +41,8 @@ speaking = False
 speaking_end = lambda wait_for_stop=False: None
 speaking_timeout = 1
 last_spoke = time.time()
-r = sr.Recognizer()
-m = sr.Microphone()
 
-with m as source:
-    r.adjust_for_ambient_noise(source)  # we only need to calibrate once, before we start listening
-
-
-width, height = pagui.size()
-
-def move_mouse(old_pos_hand, new_pos_hand):
-
-    old_pos_mouse = [old_pos_hand.x * width, old_pos_hand.y*height]
-    new_pos_mouse = [new_pos_hand.x * width, new_pos_hand.y*height]
-
-    move_vect = [old_pos_mouse[0] - new_pos_mouse[0], old_pos_mouse[1] - new_pos_mouse[1]]
-    mouse.move(move_vect[0], -move_vect[1], False)
+sp = Speech()
 
 # Class to hold a point
 class point():
@@ -65,22 +50,6 @@ class point():
         self.x = x
         self.y = y
         self.z = z
-
-# this is called from the background thread
-def callback(recognizer, audio):
-    print("AUDIO HAS CALLBACKED")
-    # received audio data, now we'll recognize it using Google Speech Recognition
-    try:
-        # for testing purposes, we're just using the default API key
-        # to use another API key, use `r.recognize_google(audio, key="GOOGLE_SPEECH_RECOGNITION_API_KEY")`
-        # instead of `r.recognize_google(audio)`
-        words = recognizer.recognize_google(audio)
-        print("Google Speech Recognition thinks you said " + words)
-        keyboard.write(words)
-    except sr.UnknownValueError:
-        print("Google Speech Recognition could not understand audio")
-    except sr.RequestError as e:
-        print("Could not request results from Google Speech Recognition service; {0}".format(e))
 
 # Get list of all nodes in the lips
 lip_nodes = set()
@@ -206,7 +175,7 @@ with mp_hands.Hands(
                     mouse.release()
 
                 # Check point
-                if fingers[2:] == [0,0,0]:
+                if fingers[3:] == [0,0] and fingers[0] == 1:
                     move_mouse(old_finger,touch_point)
                     cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
                 
@@ -229,13 +198,13 @@ with mp_hands.Hands(
                 cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
                 if (not speaking) and (time.time() - last_spoke > speaking_timeout):
                     speaking = True
-                    speaking_end = r.listen_in_background(m, callback)
+                    sp.start()
                     print("listening")
             else:
                 if speaking:
                     last_spoke = time.time()
                     speaking = False
-                    speaking_end(wait_for_stop=False)
+                    sp.stop()
                     print("stopped speaking")
                                 
             
