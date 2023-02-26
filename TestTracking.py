@@ -24,12 +24,22 @@ font_scale = 1
 font_color = (255, 150, 0)
 line_type = cv2.LINE_AA
 
+# Class to hold a point
+class point():
+    def __init__(self, x,y,z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+# Get list of all nodes in the lips
 lip_nodes = set()
 for connection in mp_face_mesh.FACEMESH_LIPS:
     lip_nodes.add(connection[0])
     lip_nodes.add(connection[1])
 
 
+# get distance between 2 points
 def distance_between(a,b):
     a = numpy.array([a.x,a.y,a.z])
     b = numpy.array([b.x,b.y,b.z])
