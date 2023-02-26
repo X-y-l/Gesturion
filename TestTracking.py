@@ -1,5 +1,17 @@
 import cv2
 import mediapipe as mp
+import numpy
+
+###########################################################################################
+# TODO:
+# function to get handspan (calibration function) -> used in distance function
+# function to determine which fingers are closed
+# function to determine direction and speed of motion of hand?
+# Design gesture library
+# 
+###########################################################################################
+
+
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
@@ -12,6 +24,18 @@ font_scale = 1
 font_color = (255, 150, 0)
 line_type = cv2.LINE_AA
 
+lip_nodes = set()
+for connection in mp_face_mesh.FACEMESH_LIPS:
+    lip_nodes.add(connection[0])
+    lip_nodes.add(connection[1])
+
+
+def distance_between(a,b):
+    a = numpy.array([a.x,a.y,a.z])
+    b = numpy.array([b.x,b.y,b.z])
+    dist = a-b
+
+    return numpy.sqrt(sum(dist*dist))
 
 # For webcam input:
 cap = cv2.VideoCapture(0)
@@ -79,11 +103,31 @@ with mp_hands.Hands(
                         .get_default_face_mesh_iris_connections_style())
             # Flip the image horizontally for a selfie-view display.
             image = cv2.flip(image, 1)
+            if hand_results.multi_hand_landmarks:
+                wrist = hand_results.multi_hand_world_landmarks[0].landmark[0]
+                finger = hand_results.multi_hand_world_landmarks[0].landmark[9]
+                lencm = distance_between(wrist, finger)*100
 
+                wrist = hand_results.multi_hand_landmarks[0].landmark[0]
+                finger = hand_results.multi_hand_landmarks[0].landmark[9]
+                lenunit = distance_between(wrist, finger)
 
-            cv2.putText(image, "Hello World", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
-            cv2.imshow('MediaPipe Hands', image)
+                conv_factor = lenunit/lencm
+
+                cv2.putText(image, f"Convertion factor{conv_factor}", (10, 200), font, font_scale, font_color, thickness=2, lineType=line_type)
+
+                if distance_between(hand_landmarks.landmark[4],hand_landmarks.landmark[8]) < 3*conv_factor:
+                    cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
+                if face_results.multi_face_landmarks:
+                    finger_pos = hand_results.multi_hand_landmarks[0].landmark[8]
+                    for i in lip_nodes:
+                        lip_pos = face_results.multi_face_landmarks[0].landmark[i]
+                        if distance_between(finger_pos, lip_pos) < 4*conv_factor:
+                            cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
+                            
             
+            cv2.imshow('MediaPipe Hands', image)
+
             if cv2.waitKey(5) & 0xFF == 27:
                 break
 
