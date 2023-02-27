@@ -130,7 +130,7 @@ with mp_hands.Hands(max_num_hands=1,model_complexity=0,min_detection_confidence=
             cv2.imshow('MediaPipe Hands', image)
 
             # Press Escape to exit
-            if cv2.waitKey(5) & 0xFF == 113:
+            if cv2.waitKey(1) & 0xFF == 113:
                 break
 
 cap.release()

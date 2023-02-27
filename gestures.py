@@ -13,13 +13,14 @@ class Gestures:
     def __init__(self):
         self.calls = [
             [self.speaking_check, self.speaking_toggle, nothing, nothing],
+            #[self.esc_check, self.esc_press, nothing, nothing],
             [self.l_click_check, self.l_click_start, self.point, self.l_click_stop],
             [self.r_click_check, self.r_click_start, self.point, self.r_click_stop],
             [self.scroll_check, self.scroll, self.scroll, nothing],
             [self.point_check, self.point, self.point, nothing],
             [lambda: True, nothing, nothing, nothing]
             ]
-        self.hist_len = 20
+        self.hist_len = 40
         self.hist = [None]*self.hist_len
         self.last = None
 
@@ -95,7 +96,7 @@ class Gestures:
     # Click
     def l_click_check(self):
         hand = self.hand_pos[-1]
-        dist = 3
+        dist = 5
         if distance_between(hand[4], hand[8]) < dist*self.conv_factor:
             return True
         return False
@@ -108,7 +109,7 @@ class Gestures:
 
     def r_click_check(self):
         hand = self.hand_pos[-1]
-        dist = 2
+        dist = 3
         if distance_between(hand[4], hand[12]) < dist*self.conv_factor:
             return True
         return False
@@ -118,3 +119,14 @@ class Gestures:
     
     def r_click_stop(self):
         mouse.release("right")
+
+    def esc_check(self):
+        if abs(self.hand_vel[-1][12].x) / self.conv_factor > 6:
+            print(abs(self.hand_vel[-1][12].x) / self.conv_factor)
+        if sum(self.finger_up[-1]) == 5:
+            return abs(self.hand_vel[-1][12].x)/self.conv_factor > 6
+        return False
+    
+    def esc_press(self):
+        print("esc")
+        keyboard.send("esc")
