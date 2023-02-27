@@ -1,16 +1,14 @@
 from mouse_move import move_mouse
-from points import point, distance_between, get_ratio_point
+from points import distance_between
 import mouse
-import pyautogui as pagui
-import numpy as np
 import keyboard
-import time
 
 def nothing():
     pass
 
 class Gestures:
     def __init__(self):
+        # Gesture Priority list
         self.calls = [
             [self.speaking_check, self.speaking_toggle, nothing, nothing],
             #[self.esc_check, self.esc_press, nothing, nothing],
@@ -18,12 +16,16 @@ class Gestures:
             [self.r_click_check, self.r_click_start, self.point, self.r_click_stop],
             [self.scroll_check, self.scroll, self.scroll, nothing],
             [self.point_check, self.point, self.point, nothing],
+            [self.silly_check, self.silly_run, nothing, nothing],
             [lambda: True, nothing, nothing, nothing]
             ]
+        
+        # Gesture smoothing values
         self.hist_len = 40
         self.hist = [None]*self.hist_len
         self.last = None
 
+    # Hand new hands to gesture engine
     def pass_data(self, hand_pos, hand_vel, finger_curl, finger_up, conv_factor, face):
         self.hand_pos = hand_pos
         self.hand_vel = hand_vel
@@ -32,6 +34,7 @@ class Gestures:
         self.conv_factor = conv_factor
         self.face = face
 
+    # Update gesture state
     def run_all(self):
         current = None
         for i, c in enumerate(self.calls):
@@ -120,6 +123,7 @@ class Gestures:
     def r_click_stop(self):
         mouse.release("right")
 
+    # Escaping
     def esc_check(self):
         if abs(self.hand_vel[-1][12].x) / self.conv_factor > 6:
             print(abs(self.hand_vel[-1][12].x) / self.conv_factor)
@@ -130,3 +134,10 @@ class Gestures:
     def esc_press(self):
         print("esc")
         keyboard.send("esc")
+
+    # Silly Demo Gesture
+    def silly_check(self):
+        return self.finger_up[-1] == [1,0,0,0,1]
+    
+    def silly_run(self):
+        keyboard.write("Rock on!")

@@ -5,9 +5,7 @@ import time
 import os
 from gestures import Gestures
 from finger_angles import hand_curl_vals
-from mouse_move import move_mouse
-from text import draw_text
-from points import point, distance_between, get_ratio_point, get_hand_vel
+from points import point, distance_between, get_hand_vel
 
 
 

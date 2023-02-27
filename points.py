@@ -15,9 +15,11 @@ def distance_between(a,b):
 
     return np.sqrt(sum(dist*dist))
 
+# Get velocity difference between two points
 def get_velocity(a,b):
     return point(a.x-b.x, a.y-b.y, a.z-b.z)
 
+# Calculate velocity for whole array of points
 def get_hand_vel(pos):
     hand = pos[-1]
     if len(pos) > 1:
@@ -31,5 +33,7 @@ def get_hand_vel(pos):
 
     return vels
 
+
+# Scale horisontal to a ratio to correct for screen space
 def get_ratio_point(pos, ratio):
     return point(pos.x, pos.y*ratio, pos.z)

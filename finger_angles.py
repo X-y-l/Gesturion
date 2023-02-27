@@ -15,8 +15,7 @@ def finger_angle(vects):
     return total_curl
 
 def point_to_cor(point):
-    cor = [point.x, point.y, point.z]
-    return cor
+    return [point.x, point.y, point.z]
 
 def hand_curl_vals(hand):
     finger_curls = []
