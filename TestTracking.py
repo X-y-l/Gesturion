@@ -13,10 +13,10 @@ from points import point, distance_between, get_ratio_point, get_hand_vel
 
 ###########################################################################################
 # TODO:
-# function to determine direction and speed of motion of hand?
-# Design gesture library
-# Fix keyboard
-# Mouse acceleration
+# Click and drag
+# Nice UI, Tells you controlls and what it's doing
+# Calibration Sudgestions
+# point at ear and scroll to change volume
 ###########################################################################################
 
 thresholds = [1.2,1.3,1.3,1.3,1.3]
@@ -71,16 +71,16 @@ with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking
             # Draw the hand annotations on the image.
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            if hand_results.multi_hand_landmarks:
-                for hand_landmarks in hand_results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS,mp_drawing_styles.get_default_hand_landmarks_style(),mp_drawing_styles.get_default_hand_connections_style())
+            #if hand_results.multi_hand_landmarks:
+            #    for hand_landmarks in hand_results.multi_hand_landmarks:
+            #        mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS,mp_drawing_styles.get_default_hand_landmarks_style(),mp_drawing_styles.get_default_hand_connections_style())
 
             # Draw the face mesh annotations on the image.
-            if face_results.multi_face_landmarks:
-                for face_landmarks in face_results.multi_face_landmarks:
-                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_TESSELATION,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
-                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_CONTOURS,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_contours_style())
-                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_IRISES,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
+            #if face_results.multi_face_landmarks:
+            #    for face_landmarks in face_results.multi_face_landmarks:
+            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_TESSELATION,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
+            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_CONTOURS,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_contours_style())
+            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_IRISES,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
             # Flip the image horizontally for a selfie-view display.
             image = cv2.flip(image, 1)
             
@@ -97,7 +97,7 @@ with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking
                 ups = []
                 for i in range(5):
                     ups.append(curls[i]<thresholds[i])
-                draw_text(image, str(ups), (10, 350))
+                #draw_text(image, str(ups), (10, 350))
                 
                 # Face gestures
                 touching_mouth = False
@@ -130,7 +130,7 @@ with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking
             cv2.imshow('MediaPipe Hands', image)
 
             # Press Escape to exit
-            if cv2.waitKey(5) & 0xFF == 27:
+            if cv2.waitKey(5) & 0xFF == 113:
                 break
 
 cap.release()

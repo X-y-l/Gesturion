@@ -1,12 +1,30 @@
 from mouse_move import move_mouse
 from points import point, distance_between, get_ratio_point
 import mouse
+import pyautogui as pagui
+import numpy as np
 import keyboard
+import time
+
+def nothing():
+    pass
 
 class Gestures:
     def __init__(self):
-        self.scroll_speed = 0
-        self.recording = False
+        self.calls = [
+            [self.speaking_check, self.speaking_toggle, nothing, self.speaking_toggle],
+            [self.scroll_check, self.scroll, self.scroll, nothing],
+            [self.point_check, self.point, self.point, nothing],
+            [lambda: True, nothing, nothing, nothing]
+            ]
+        self.click_len = 5
+        self.left = [False]*self.click_len
+        self.left_click = False
+        self.right = [False]*self.click_len
+        self.right_click = False
+        self.hist_len = 20
+        self.hist = [None]*self.hist_len
+        self.last = None
 
     def pass_data(self, hand_pos, hand_vel, finger_curl, finger_up, conv_factor, face):
         self.hand_pos = hand_pos
@@ -17,69 +35,114 @@ class Gestures:
         self.face = face
 
     def run_all(self):
-        if self.recording:
-            self.speaking()
-            #mouse.release()
-        else:
-            if not self.scroll():
-                if not self.point():
-                    self.speaking()
-                self.click()
+        current = None
+        for i, c in enumerate(self.calls):
+            if c[0]():
+                current = i
+                break
+        self.hist.append(current)
+        self.hist = self.hist[1:]
 
-    def speaking(self):
-        f_up = self.finger_up[-1]
-        if self.face[-1] and not self.face[-2] and f_up[1:] == [1,0,0,0]:
-            keyboard.send("win+h")
-            self.recording = False
-        if self.face[-2] and not self.face[-1] and self.recording:
-            keyboard.send("win+h")
-            self.recording = True
-        if self.face[-1] and f_up[1:] == [1,0,0,0]:
-            return True
-        return False
+        if self.last is not None:
+            self.calls[self.last][2]()
 
-    def point(self):
+        best = 0
+        best_action = None
+        for i in range(len(self.calls)):
+            amount = 0
+            for j in self.hist:
+                if j == i:
+                    amount += 1
+            if amount > best:
+                best = amount
+                best_action = j
+
+        if best_action != self.last:
+            if self.last is not None:
+                self.calls[self.last][3]()
+            if best_action is not None:
+                self.last = best_action
+                self.calls[best_action][1]()
+            
+
+
+    # Speaking
+    def speaking_toggle(self):
+        keyboard.send("win+h")
+    
+    def speaking_check(self):
         f_up = self.finger_up[-1]
-        if f_up[3] == 0 and f_up[4] == 0 and f_up[0] == 1:
-            old_finger = self.hand_pos[-1][5]
-            touch_point = self.hand_pos[-2][5]
-            move_mouse(touch_point,old_finger)
-            return True
+        return self.face[-1] and f_up[1:] == [1,0,0,0]
+
+    # Pointing
+    def point_check(self):
+        f_up = self.finger_up[-1]
+        return f_up[3] == 0 and f_up[4] == 0 and f_up[0] == 1
         
-        return False
+    def point(self):
+        old_finger = self.hand_pos[-1][5]
+        touch_point = self.hand_pos[-2][5]
+
+        self.left.append(self.l_click_check())
+        self.right.append(self.r_click_check())
+
+        self.left = self.left[1:]
+        print(self.left)
+        self.right = self.right[1:]
+
+        if sum(self.left) > 3 and not self.left_click:
+            self.l_click_start()
+            print("click")
+            self.left_click = True
+        if sum(self.left) < 1 and self.left_click:
+            self.l_click_stop()
+            self.left_click = False
+
+        if sum(self.right) > 3 and not self.right_click:
+            self.r_click_start()
+            print("unclick")
+            self.right_click = True
+        if sum(self.right) < 1 and self.right_click:
+            self.r_click_stop()
+            self.right_click = False
+
+
+        move_mouse(touch_point,old_finger,self.conv_factor)
+
+    # scrolling
+    def scroll_check(self):
+        f_up = self.finger_up[-1]
+        return f_up[1:] == [0,0,0,0]
 
     def scroll(self):
-        f_up = self.finger_up[-1]
         scroll_dist = 0.2*self.conv_factor
-        if f_up[1:] == [0,0,0,0]:
-            clicks = self.hand_vel[-1][4].y//scroll_dist
-            print(clicks)
-            mouse.wheel(clicks)
-            if clicks != 0:
-                return True
-        else:
-            return False
+        clicks = self.hand_vel[-1][4].y//scroll_dist
+        print(clicks)
+        mouse.wheel(clicks)
 
-
-    def click(self):
+    # Click
+    def l_click_check(self):
         hand = self.hand_pos[-1]
         dist = 5
-        dist_r = 2
-        old_hand = self.hand_pos[-2]
-        clicked = False
-        if distance_between(old_hand[4], old_hand[8]) > dist*self.conv_factor:
-            if distance_between(hand[4], hand[8]) < dist*self.conv_factor:
-                mouse.press()
-                clicked = True
-        if distance_between(old_hand[4], old_hand[8]) < dist*self.conv_factor:
-            if distance_between(hand[4], hand[8]) > dist*self.conv_factor:
-                mouse.release()
+        if distance_between(hand[4], hand[8]) < dist*self.conv_factor:
+            return True
+        return False
+    
+    def l_click_start(self):
+        mouse.press()
 
-        if distance_between(old_hand[4], old_hand[12]) > dist_r*self.conv_factor:
-            if distance_between(hand[4], hand[12]) < dist_r*self.conv_factor:
-                mouse.press(button="right")
-                clicked = True
-        if distance_between(old_hand[4], old_hand[12]) < dist_r*self.conv_factor:
-            if distance_between(hand[4], hand[12]) > dist_r*self.conv_factor:
-                mouse.release(button="right")
-        return clicked
+    def l_click_stop(self):
+        mouse.release()
+
+    def r_click_check(self):
+        hand = self.hand_pos[-1]
+        dist = 2
+        if distance_between(hand[4], hand[12]) < dist*self.conv_factor:
+            return True
+        return False
+
+    def r_click_start(self):
+        mouse.press("right")
+    
+    def r_click_stop(self):
+        mouse.release("right")
