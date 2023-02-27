@@ -19,7 +19,7 @@ from points import point, distance_between, get_ratio_point, get_hand_vel
 # point at ear and scroll to change volume
 ###########################################################################################
 
-thresholds = [1.2,1.3,1.3,1.3,1.3]
+thresholds = [1.2,1.1,1.1,1.1,1.1]
 max_mem = 10
 
 if os.getlogin() == "surface":
@@ -54,7 +54,7 @@ finger_curl = []
 finger_up = []
 face_hist = []
 speaking = False
-with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking_confidence=0.5) as hands:
+with mp_hands.Hands(max_num_hands=1,model_complexity=0,min_detection_confidence=0.5,min_tracking_confidence=0.5) as hands:
     with mp_face_mesh.FaceMesh(max_num_faces=1,refine_landmarks=True,min_detection_confidence=0.5,min_tracking_confidence=0.5) as face_mesh:
         
         while cap.isOpened():
@@ -71,16 +71,16 @@ with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking
             # Draw the hand annotations on the image.
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            #if hand_results.multi_hand_landmarks:
-            #    for hand_landmarks in hand_results.multi_hand_landmarks:
-            #        mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS,mp_drawing_styles.get_default_hand_landmarks_style(),mp_drawing_styles.get_default_hand_connections_style())
+            if hand_results.multi_hand_landmarks:
+                for hand_landmarks in hand_results.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS,mp_drawing_styles.get_default_hand_landmarks_style(),mp_drawing_styles.get_default_hand_connections_style())
 
             # Draw the face mesh annotations on the image.
-            #if face_results.multi_face_landmarks:
-            #    for face_landmarks in face_results.multi_face_landmarks:
-            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_TESSELATION,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
-            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_CONTOURS,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_contours_style())
-            #        mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_IRISES,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
+            if face_results.multi_face_landmarks:
+                for face_landmarks in face_results.multi_face_landmarks:
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_TESSELATION,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_CONTOURS,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_contours_style())
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_IRISES,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
             # Flip the image horizontally for a selfie-view display.
             image = cv2.flip(image, 1)
             

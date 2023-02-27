@@ -12,16 +12,13 @@ def nothing():
 class Gestures:
     def __init__(self):
         self.calls = [
-            [self.speaking_check, self.speaking_toggle, nothing, self.speaking_toggle],
+            [self.speaking_check, self.speaking_toggle, nothing, nothing],
+            [self.l_click_check, self.l_click_start, self.point, self.l_click_stop],
+            [self.r_click_check, self.r_click_start, self.point, self.r_click_stop],
             [self.scroll_check, self.scroll, self.scroll, nothing],
             [self.point_check, self.point, self.point, nothing],
             [lambda: True, nothing, nothing, nothing]
             ]
-        self.click_len = 5
-        self.left = [False]*self.click_len
-        self.left_click = False
-        self.right = [False]*self.click_len
-        self.right_click = False
         self.hist_len = 20
         self.hist = [None]*self.hist_len
         self.last = None
@@ -83,30 +80,6 @@ class Gestures:
         old_finger = self.hand_pos[-1][5]
         touch_point = self.hand_pos[-2][5]
 
-        self.left.append(self.l_click_check())
-        self.right.append(self.r_click_check())
-
-        self.left = self.left[1:]
-        print(self.left)
-        self.right = self.right[1:]
-
-        if sum(self.left) > 3 and not self.left_click:
-            self.l_click_start()
-            print("click")
-            self.left_click = True
-        if sum(self.left) < 1 and self.left_click:
-            self.l_click_stop()
-            self.left_click = False
-
-        if sum(self.right) > 3 and not self.right_click:
-            self.r_click_start()
-            print("unclick")
-            self.right_click = True
-        if sum(self.right) < 1 and self.right_click:
-            self.r_click_stop()
-            self.right_click = False
-
-
         move_mouse(touch_point,old_finger,self.conv_factor)
 
     # scrolling
@@ -115,15 +88,14 @@ class Gestures:
         return f_up[1:] == [0,0,0,0]
 
     def scroll(self):
-        scroll_dist = 0.2*self.conv_factor
+        scroll_dist = 0.5*self.conv_factor
         clicks = self.hand_vel[-1][4].y//scroll_dist
-        print(clicks)
         mouse.wheel(clicks)
 
     # Click
     def l_click_check(self):
         hand = self.hand_pos[-1]
-        dist = 5
+        dist = 3
         if distance_between(hand[4], hand[8]) < dist*self.conv_factor:
             return True
         return False
