@@ -6,15 +6,24 @@ import time
 import speech_recognition as sr
 import keyboard
 
+mic_num = 1
+use_name = ""
+for index, name in enumerate(sr.Microphone.list_microphone_names()):
+    if index == mic_num:
+        use_name = name
+    print("Microphone with name \"{1}\" found for `Microphone(device_index={0})`".format(index, name))
+
+print(f"Using Mic: {use_name}")
+
 
 class Speech():
     def __init__(self):
         self.running = False
         self.r = sr.Recognizer()
-        self.r.energy_threshold = 3000
-        self.m = sr.Microphone(device_index=1)
+        #self.r.energy_threshold = 3000
+        self.m = sr.Microphone(device_index=mic_num)
         with self.m as source:
-            self.r.adjust_for_ambient_noise(source,duration=5)  # we only need to calibrate once, before we start listening
+            self.r.adjust_for_ambient_noise(source,duration=1)  # we only need to calibrate once, before we start listening
 
     def start(self):
         if not self.running:
@@ -23,9 +32,10 @@ class Speech():
             print("listening")
 
     def stop(self):
-        self.running = False
-        self.stop_listening(wait_for_stop=False)
-        self = Speech()
+        if self.running:
+            print("Stopping")
+            self.stop_listening(wait_for_stop=False)
+            self.running = False
 
 # this is called from the background thread
 def callback(recognizer, audio):

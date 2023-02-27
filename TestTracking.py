@@ -2,11 +2,13 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
-import mouse
 import os
-from speech_stuff import Speech
+from gestures import Gestures
 from finger_angles import hand_curl_vals
 from mouse_move import move_mouse
+from text import draw_text
+from points import point, distance_between, get_ratio_point, get_hand_vel
+
 
 
 ###########################################################################################
@@ -17,7 +19,8 @@ from mouse_move import move_mouse
 # Mouse acceleration
 ###########################################################################################
 
-thresholds = [1.2,1,1,1,1]
+thresholds = [1.2,1.3,1.3,1.3,1.3]
+max_mem = 10
 
 if os.getlogin() == "surface":
     cam_to_use = 1
@@ -29,26 +32,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 mp_face_mesh = mp.solutions.face_mesh
 
-
-# Define the font properties
-font = cv2.FONT_HERSHEY_SIMPLEX
-font_scale = 1
-font_color = (0, 55, 255)
-line_type = cv2.LINE_AA
-
-speaking = False
-speaking_end = lambda wait_for_stop=False: None
-speaking_timeout = 1
-last_spoke = time.time()
-
-sp = Speech()
-
-# Class to hold a point
-class point():
-    def __init__(self, x,y,z):
-        self.x = x
-        self.y = y
-        self.z = z
+g = Gestures()
 
 # Get list of all nodes in the lips
 lip_nodes = set()
@@ -56,52 +40,29 @@ for connection in mp_face_mesh.FACEMESH_LIPS:
     lip_nodes.add(connection[0])
     lip_nodes.add(connection[1])
 
-
-# get distance between 2 points
-def distance_between(a,b):
-    a = np.array([a.x,a.y,a.z])
-    b = np.array([b.x,b.y,b.z])
-    dist = a-b
-
-    return np.sqrt(sum(dist*dist))
-
-def get_ratio_point(pos, ratio):
-    return point(pos.x, pos.y*ratio, pos.z)
-
 # For webcam input:
 cap = cv2.VideoCapture(cam_to_use)
 cap.set(cv2.CAP_PROP_FPS, 60)
 
-# Get the current frame width and height
-frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
 # Calculate the aspect ratio
-aspect_ratio = frame_width / frame_height
+aspect_ratio = cap.get(cv2.CAP_PROP_FRAME_WIDTH) / cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 last = time.time()
-old_finger = point(0,0,0)
-with mp_hands.Hands(
-        model_complexity=0,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5) as hands:
-    
-    with mp_face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5) as face_mesh:
+hand_pos = []
+hand_vel = []
+finger_curl = []
+finger_up = []
+face_hist = []
+speaking = False
+with mp_hands.Hands(model_complexity=0,min_detection_confidence=0.5,min_tracking_confidence=0.5) as hands:
+    with mp_face_mesh.FaceMesh(max_num_faces=1,refine_landmarks=True,min_detection_confidence=0.5,min_tracking_confidence=0.5) as face_mesh:
         
         while cap.isOpened():
-            delta = last - time.time()
             success, image = cap.read()
             if not success:
                 print("Ignoring empty camera frame.")
-                # If loading a video, use 'break' instead of 'continue'.
                 continue
 
-            # To improve performance, optionally mark the image as not writeable to
-            # pass by reference.
             image.flags.writeable = False
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             hand_results = hands.process(image)
@@ -112,46 +73,20 @@ with mp_hands.Hands(
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             if hand_results.multi_hand_landmarks:
                 for hand_landmarks in hand_results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(
-                        image,
-                        hand_landmarks,
-                        mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmarks_style(),
-                        mp_drawing_styles.get_default_hand_connections_style()
-                    )
+                    mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS,mp_drawing_styles.get_default_hand_landmarks_style(),mp_drawing_styles.get_default_hand_connections_style())
 
             # Draw the face mesh annotations on the image.
             if face_results.multi_face_landmarks:
                 for face_landmarks in face_results.multi_face_landmarks:
-                    mp_drawing.draw_landmarks(
-                        image=image,
-                        landmark_list=face_landmarks,
-                        connections=mp_face_mesh.FACEMESH_TESSELATION,
-                        landmark_drawing_spec=None,
-                        connection_drawing_spec=mp_drawing_styles
-                        .get_default_face_mesh_tesselation_style())
-                    mp_drawing.draw_landmarks(
-                        image=image,
-                        landmark_list=face_landmarks,
-                        connections=mp_face_mesh.FACEMESH_CONTOURS,
-                        landmark_drawing_spec=None,
-                        connection_drawing_spec=mp_drawing_styles
-                        .get_default_face_mesh_contours_style())
-                    mp_drawing.draw_landmarks(
-                        image=image,
-                        landmark_list=face_landmarks,
-                        connections=mp_face_mesh.FACEMESH_IRISES,
-                        landmark_drawing_spec=None,
-                        connection_drawing_spec=mp_drawing_styles
-                        .get_default_face_mesh_iris_connections_style())
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_TESSELATION,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_CONTOURS,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_contours_style())
+                    mp_drawing.draw_landmarks(image=image,landmark_list=face_landmarks,connections=mp_face_mesh.FACEMESH_IRISES,landmark_drawing_spec=None,connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_iris_connections_style())
             # Flip the image horizontally for a selfie-view display.
             image = cv2.flip(image, 1)
             
-            touching_mouth = False
             if hand_results.multi_hand_landmarks:
                 hand = hand_results.multi_hand_landmarks[0].landmark
                 hand_metric = hand_results.multi_hand_world_landmarks[0].landmark
-                # Hand only Gestures
                 # Get space convertion factor
                 lencm = distance_between(hand_metric[0], hand_metric[9])*100
                 lenunit = distance_between(hand[0], hand[9])
@@ -159,55 +94,42 @@ with mp_hands.Hands(
 
                 # Finger curls
                 curls = hand_curl_vals(hand)
-                fingers = []
+                ups = []
                 for i in range(5):
-                    fingers.append(curls[i]<thresholds[i])
-
-                cv2.putText(image, str(fingers), (10, 350), font, font_scale, font_color, thickness=2, lineType=line_type)
-
-                # Mouse reference point
-                touch_point = hand[5]
-
-                # Check click
-                if distance_between(hand[4], hand[8]) < 5*conv_factor:
-                    mouse.press()
-                else:
-                    mouse.release()
-
-                # Check point
-                if fingers[3:] == [0,0] and fingers[0] == 1:
-                    move_mouse(old_finger,touch_point)
-                    cv2.putText(image, "Click", (10, 50), font, font_scale, font_color, thickness=2, lineType=line_type)
+                    ups.append(curls[i]<thresholds[i])
+                draw_text(image, str(ups), (10, 350))
                 
                 # Face gestures
-                elif face_results.multi_face_landmarks:
+                touching_mouth = False
+                if face_results.multi_face_landmarks:
                     face = face_results.multi_face_landmarks[0].landmark
-
-                    finger_pos = hand[8]
                     for i in lip_nodes:
-                        lip_pos = face[i]
-                        if distance_between(finger_pos, lip_pos) < 5*conv_factor:
+                        if distance_between(hand[8], face[i]) < 8*conv_factor:
                             touching_mouth = True
                             break
-                
-                # Update old point
-                old_finger = touch_point
-                    
 
-            if touching_mouth:
-                cv2.putText(image, "SPEAK", (10, 150), font, font_scale, font_color, thickness=2, lineType=line_type)
-                if (not speaking):
-                    speaking = True
-                    #sp.start()
-                    print("listening")
-            elif speaking:
-                speaking = False
-                #sp.stop()
-                print("stopped speaking")
+                # Get data ready
+                hand_pos.append(hand)
+                finger_curl.append(curls)
+                finger_up.append(ups)
+                hand_vel.append(get_hand_vel(hand_pos))
+                face_hist.append(touching_mouth)
+
+                if len(hand_pos) > max_mem:
+                    hand_pos = hand_pos[1:]
+                    finger_curl = finger_curl[1:]
+                    finger_up = finger_up[1:]
+                    hand_vel = hand_vel[1:]
+                    face_hist = face_hist[1:]
+                
+                if len(hand_pos) > 1:
+                    g.pass_data(hand_pos, hand_vel, finger_curl, finger_up, conv_factor, face_hist)
+                    g.run_all()
                                 
             
             cv2.imshow('MediaPipe Hands', image)
 
+            # Press Escape to exit
             if cv2.waitKey(5) & 0xFF == 27:
                 break
 
